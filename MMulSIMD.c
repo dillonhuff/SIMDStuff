@@ -66,15 +66,14 @@ void rand_doubles(double *rands, int size) {
 
 
 
-int main()  {
-  
+int main()  {  
   double a[16];
   double b[16];
   double c[16];
 
-
-
-  mmmul_2x2(a, b, c);
+  rand_doubles(a, 16);
+  rand_doubles(b, 16);
+  rand_doubles(c, 16);
 
   return 0;
 }
