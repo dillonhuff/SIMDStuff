@@ -25,11 +25,11 @@ inline void mmmul_2x2(double *a, double *b, double *c) {
 
   printf("two by two\n");
 
-  c_00_01 = _mm_loadu_pd(&c[0]);
+  c_00_01 = _mm_load_pd(&c[0]);
 
   printf("noooo\n");
 
-  c_10_11 = _mm_loadu_pd(&c[2]);
+  c_10_11 = _mm_load_pd(&c[2]);
 
   printf("load c\n");
 
