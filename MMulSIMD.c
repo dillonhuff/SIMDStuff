@@ -1,13 +1,25 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <smmintrin.h>
 
-// C = AB + C for 2 double precision matrices in
-// row major order
-inline void gemm_2x2(double *a, double *b, double *c) {
+// B = A + B for A, B of size 4
+inline void sum_4(double *a, double *b)  {
+  __m128d b_00_01, b_10_11;
+
+  b_00_01 = _mm_load_pd(&b[0]);
+  b_10_11 = _mm_load_pd(&b[2]);
+
+  b_00_01 += _mm_load_pd(&a[0]);
+  b_10_11 += _mm_load_pd(&a[2]);
+
+  _mm_store_pd(&b[0], b_00_01);
+  _mm_store_pd(&b[2], b_10_11);
+}
+
+// C = AB + C for 2 double precision matrices in row major order
+inline void mmmul_2x2(double *a, double *b, double *c) {
   __m128d c_00_01, c_10_11;
-
   __m128d a_00, a_01, a_10, a_11;
-
   __m128d b_00_01, b_10_11;
 
   c_00_01 = _mm_load_pd(&c[0]);
@@ -31,29 +43,38 @@ inline void gemm_2x2(double *a, double *b, double *c) {
   _mm_store_pd(&c[2],c_10_11);
 }
 
+inline void mmmul_4x4(double *a, double *b, double *c) {
+  mmmul_2x2(&a[0], &b[0], &c[0]);
+  mmmul_2x2(&a[4], &b[8], &c[0]);
+
+  mmmul_2x2(&a[0], &b[4], &c[4]);
+  mmmul_2x2(&a[4], &b[12], &c[4]);
+
+  mmmul_2x2(&a[8], &b[0], &c[8]);
+  mmmul_2x2(&a[12], &b[8], &c[8]);
+
+  mmmul_2x2(&a[8], &b[4], &c[12]);
+  mmmul_2x2(&a[12], &b[12], &c[12]);
+}
+
+void rand_doubles(double *rands, int size) {
+  int i;
+  for (i = 0; i < size; i++) {
+    rands[i] = rand();
+  }
+}
+
+
+
 int main()  {
   
-  double a[4];
-  double b[4];
-  double c[4];
+  double a[16];
+  double b[16];
+  double c[16];
 
-  a[0] = 1.0;
-  a[1] = 2.0;
-  a[2] = 3.0;
-  a[3] = 4.0;
 
-  b[0] = 5.0;
-  b[1] = 6.0;
-  b[2] = 7.0;
-  b[3] = 8.0;
 
-  c[0] = 9.0;
-  c[1] = 10.0;
-  c[2] = 11.0;
-  c[3] = 12.0;
+  mmmul_2x2(a, b, c);
 
-  gemm_2x2(a, b, c);
-
-  printf("c[0] = %f\nc[1] = %f\nc[2] = %f\nc[3] = %f\n", c[0], c[1], c[2], c[3]);
   return 0;
 }
