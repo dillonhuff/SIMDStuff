@@ -4,6 +4,7 @@
 #define B(i,j) b[ (j)*ldb + (i)]
 #define C(i,j) c[ (j)*ldc + (i)]
 
+// Naive version, loops are not even ordered well
 void mmmul_1(int m, int n, int k, double *a, double *b, double *c, int lda, int ldb, int ldc) {
   int i, j, p;
   for (i = 0; i < m; i++) {
