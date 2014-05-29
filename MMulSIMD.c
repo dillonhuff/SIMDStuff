@@ -28,13 +28,65 @@ void mmmul_2(int m, int n, int k, double *a, double *b, double *c, int lda, int 
   }
 }
 
+void add_dot(int k, double *a, double *b, double *c, int a_stride)  {
+  int p;
+  double tmp = *c;
+  for (p = 0; p < k; p++) {
+    tmp += a[a_stride*p] + b[p];
+  }
+  *c = tmp;
+}
+
+// Uses Add dot subroutine
+void mmmul_3(int m, int n, int k, double *a, double *b, double *c, int lda, int ldb, int ldc) {
+  int i, j;
+  for (j = 0; j < n; j++) {
+    for (i = 0; i < m; i++) {
+      add_dot(k, &A(i, 0), &B(0, j), &C(i, j), lda);
+    }
+  }
+}
+
+// Uses Add dot subroutine, unrolled by 4
+void mmmul_4(int m, int n, int k, double *a, double *b, double *c, int lda, int ldb, int ldc) {
+  int i, j;
+  for (j = 0; j < n; j+=4) {
+    for (i = 0; i < m; i+=1) {
+      add_dot(k, &A(i, 0), &B(0, j), &C(i, j), lda);
+      add_dot(k, &A(i, 0), &B(0, j+1), &C(i, j+1), lda);
+      add_dot(k, &A(i, 0), &B(0, j+2), &C(i, j+2), lda);
+      add_dot(k, &A(i, 0), &B(0, j+3), &C(i, j+3), lda);
+    }
+  }
+}
+
+void add_dot_1x4(int k, double *a, double *b, double *c, int lda, int ldb, int ldc)  {
+  int p;
+  for (p = 0; p < k; p++) {
+    C(0, 0) += A(0, p) * B(p, 0);
+    C(0, 1) += A(0, p) * B(p, 1);
+    C(0, 2) += A(0, p) * B(p, 2);
+    C(0, 3) += A(0, p) * B(p, 3);
+  }
+}
+
+// Merged, unrolled dot products
+void mmmul_5(int m, int n, int k, double *a, double *b, double *c, int lda, int ldb, int ldc) {
+  int i, j;
+  for (j = 0; j < n; j+=4) {
+    for (i = 0; i < m; i+=1) {
+      add_dot_1x4(k, &A(i, 0), &B(0, j), &C(i, j), lda, ldb, ldc);
+    }
+  }
+}
+
 typedef struct {
   double time1;
   double time2;
 } cmp_times;
 
-char *method_1_name = "mmmul_1";
-char *method_2_name = "mmmul_2";
+char *method_1_name = "mmmul_4";
+char *method_2_name = "mmmul_5";
 
 void timed_mmmul(int n, cmp_times *times, double *a, double *b, double *c1, double *c2) {
   int size = n*n;
@@ -43,17 +95,18 @@ void timed_mmmul(int n, cmp_times *times, double *a, double *b, double *c1, doub
   double method_1_time, method_2_time;
 
   begin = clock();
-  mmmul_1(n, n, n, a, b, c1, n, n, n);
+  mmmul_4(n, n, n, a, b, c1, n, n, n);
   end = clock();
   times->time1 = (double) (end - begin) / CLOCKS_PER_SEC;
 
   begin = clock();
-  mmmul_2(n, n, n, a, b, c2, n, n, n);
+  mmmul_5(n, n, n, a, b, c2, n, n, n);
   end = clock();
   times->time2 = (double) (end - begin) / CLOCKS_PER_SEC;
 }
 
 void save_results_to_file(int n, int *dims, char *m1_name, double *m1_times, char *m2_name, double *m2_times)  {
+  printf("Saving results\n");
   char file_name[200];
   strcpy(file_name, "gemm_time_cmp_");
   strcat(file_name, m1_name);
@@ -73,7 +126,7 @@ void save_results_to_file(int n, int *dims, char *m1_name, double *m1_times, cha
 }
 
 int main()  {
-  int num_dims = 130;
+  int num_dims = 150;
   int increments = 4;
   int dimensions[num_dims];
   int i;
