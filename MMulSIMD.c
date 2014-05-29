@@ -16,7 +16,7 @@ void mmmul_1(int m, int n, int k, double *a, double *b, double *c, int lda, int 
   }
 }
 
-// Naive version, loops are now correct
+// Naive version, loops are now correct for column major order
 void mmmul_2(int m, int n, int k, double *a, double *b, double *c, int lda, int ldb, int ldc) {
   int i, j, p;
   for (j = 0; j < n; j++) {
@@ -80,13 +80,113 @@ void mmmul_5(int m, int n, int k, double *a, double *b, double *c, int lda, int 
   }
 }
 
+void add_dot_4x4(int k, double *a, double *b, double *c, int lda, int ldb, int ldc)  {
+  int p;
+
+  for (p = 0; p < k; p++) {
+        C(0, 0) += A(0, p) * B(p, 0);
+        C(0, 1) += A(0, p) * B(p, 1);
+        C(0, 2) += A(0, p) * B(p, 2);
+        C(0, 3) += A(0, p) * B(p, 3);
+
+        C(1, 0) += A(1, p) * B(p, 0);
+        C(1, 1) += A(1, p) * B(p, 1);
+        C(1, 2) += A(1, p) * B(p, 2);
+        C(1, 3) += A(1, p) * B(p, 3);
+
+        C(2, 0) += A(2, p) * B(p, 0);
+        C(2, 1) += A(2, p) * B(p, 1);
+        C(2, 2) += A(2, p) * B(p, 2);
+        C(2, 3) += A(2, p) * B(p, 3);
+
+        C(3, 0) += A(3, p) * B(p, 0);
+        C(3, 1) += A(3, p) * B(p, 1);
+        C(3, 2) += A(3, p) * B(p, 2);
+        C(3, 3) += A(3, p) * B(p, 3);
+      }
+}
+
+// 4x4 merged, inlined dot products
+void mmmul_6(int m, int n, int k, double *a, double *b, double *c, int lda, int ldb, int ldc) {
+  int i, j;
+  for (j = 0; j < n; j+=4) {
+    for (i = 0; i < m; i+=4) {
+      add_dot_4x4(k, &A(i, 0), &B(0, j), &C(i, j), lda, ldb, ldc);
+    }
+  }
+}
+
+void add_dot_4x4_regs(int k, double *a, double *b, double *c, int lda, int ldb, int ldc)  {
+  int p;
+  register double
+    c_00_reg, c_01_reg, c_02_reg, c_03_reg,
+    c_10_reg, c_11_reg, c_12_reg, c_13_reg,
+    c_20_reg, c_21_reg, c_22_reg, c_23_reg,
+    c_30_reg, c_31_reg, c_32_reg, c_33_reg;
+  register double
+    a_0p_reg,
+    a_1p_reg,
+    a_2p_reg,
+    a_3p_reg;
+
+  for (p = 0; p < k; p++) {
+        c_00_reg += a_0p_reg * B(p, 0);
+        c_01_reg += a_0p_reg * B(p, 1);
+        c_02_reg += a_0p_reg * B(p, 2);
+        c_03_reg += a_0p_reg * B(p, 3);
+
+        c_10_reg += a_1p_reg * B(p, 0);
+        c_11_reg += a_1p_reg * B(p, 1);
+        c_12_reg += a_1p_reg * B(p, 2);
+        c_13_reg += a_1p_reg * B(p, 3);
+
+        c_20_reg += a_2p_reg * B(p, 0);
+        c_21_reg += a_2p_reg * B(p, 1);
+        c_22_reg += a_2p_reg * B(p, 2);
+        c_23_reg += a_2p_reg * B(p, 3);
+
+        c_20_reg += a_2p_reg * B(p, 0);
+        c_21_reg += a_2p_reg * B(p, 1);
+        c_22_reg += a_2p_reg * B(p, 2);
+        c_23_reg += a_2p_reg * B(p, 3);
+      }
+
+      C(0, 0) += c_00_reg;
+      C(0, 1) += c_00_reg;
+      C(0, 2) += c_00_reg;
+      C(0, 3) += c_00_reg;
+      C(1, 0) += c_10_reg;
+      C(1, 1) += c_11_reg;
+      C(1, 2) += c_12_reg;
+      C(1, 3) += c_13_reg;
+      C(2, 0) += c_20_reg;
+      C(2, 1) += c_21_reg;
+      C(2, 2) += c_22_reg;
+      C(2, 3) += c_23_reg;
+      C(3, 0) += c_30_reg;
+      C(3, 1) += c_31_reg;
+      C(3, 2) += c_32_reg;
+      C(3, 3) += c_33_reg;
+}
+
+// 4x4 merged, inlined dot products at a time with register storage
+// for frequently used vars
+void mmmul_7(int m, int n, int k, double *a, double *b, double *c, int lda, int ldb, int ldc) {
+  int i, j;
+  for (j = 0; j < n; j+=4) {
+    for (i = 0; i < m; i+=4) {
+      add_dot_4x4_regs(k, &A(i, 0), &B(0, j), &C(i, j), lda, ldb, ldc);
+    }
+  }
+}
+
 typedef struct {
   double time1;
   double time2;
 } cmp_times;
 
-char *method_1_name = "mmmul_4";
-char *method_2_name = "mmmul_5";
+char *method_1_name = "mmmul_6";
+char *method_2_name = "mmmul_7";
 
 void timed_mmmul(int n, cmp_times *times, double *a, double *b, double *c1, double *c2) {
   int size = n*n;
@@ -95,12 +195,12 @@ void timed_mmmul(int n, cmp_times *times, double *a, double *b, double *c1, doub
   double method_1_time, method_2_time;
 
   begin = clock();
-  mmmul_4(n, n, n, a, b, c1, n, n, n);
+  mmmul_6(n, n, n, a, b, c1, n, n, n);
   end = clock();
   times->time1 = (double) (end - begin) / CLOCKS_PER_SEC;
 
   begin = clock();
-  mmmul_5(n, n, n, a, b, c2, n, n, n);
+  mmmul_7(n, n, n, a, b, c2, n, n, n);
   end = clock();
   times->time2 = (double) (end - begin) / CLOCKS_PER_SEC;
 }
@@ -158,10 +258,14 @@ int main()  {
     m2_times[i] = times.time2;
   }
 
+  printf("Done with timing data\n");
+
   free(a);
   free(b);
   free(c1);
   free(c2);
+
+  printf("Done freeing test data\n");
 
   save_results_to_file(num_dims, dimensions, method_1_name, m1_times, method_2_name, m2_times);
   return 0;
