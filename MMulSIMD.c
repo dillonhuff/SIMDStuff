@@ -107,8 +107,8 @@ int main()  {
 
   copy_buffer(16, c, other_c);
 
-  mmmul_4x4(a, b, c);
-  simple_mmmul(4, a, b, other_c);
+  mmmul_2x2(a, b, c);
+  simple_mmmul(2, a, b, other_c);
 
   double diff = diff_buffer(16, c, other_c);
   printf("diff = %f\n", diff);
