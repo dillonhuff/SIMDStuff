@@ -180,13 +180,88 @@ void mmmul_7(int m, int n, int k, double *a, double *b, double *c, int lda, int 
   }
 }
 
+void add_dot_4x4_regs_bptrs(int k, double *a, double *b, double *c, int lda, int ldb, int ldc)  {
+  int p;
+  register double
+    c_00_reg, c_01_reg, c_02_reg, c_03_reg,
+    c_10_reg, c_11_reg, c_12_reg, c_13_reg,
+    c_20_reg, c_21_reg, c_22_reg, c_23_reg,
+    c_30_reg, c_31_reg, c_32_reg, c_33_reg;
+  register double
+    a_0p_reg,
+    a_1p_reg,
+    a_2p_reg,
+    a_3p_reg;
+
+  double
+    b_p0_pntr,
+    b_p1_pntr,
+    b_p2_pntr,
+    b_p3_pntr;
+
+  b_p0_pntr = B(p, 0);
+  b_p1_pntr = B(p, 1);
+  b_p2_pntr = B(p, 2);
+  b_p3_pntr = B(p, 3);
+
+  for (p = 0; p < k; p++) {
+        c_00_reg += a_0p_reg * b_p0_pntr;
+        c_01_reg += a_0p_reg * b_p1_pntr;
+        c_02_reg += a_0p_reg * b_p2_pntr;
+        c_03_reg += a_0p_reg * b_p3_pntr;
+
+        c_10_reg += a_1p_reg * b_p0_pntr;
+        c_11_reg += a_1p_reg * b_p1_pntr;
+        c_12_reg += a_1p_reg * b_p2_pntr;
+        c_13_reg += a_1p_reg * b_p3_pntr;
+
+        c_20_reg += a_2p_reg * b_p0_pntr;
+        c_21_reg += a_2p_reg * b_p1_pntr;
+        c_22_reg += a_2p_reg * b_p2_pntr;
+        c_23_reg += a_2p_reg * b_p3_pntr;
+
+        c_20_reg += a_2p_reg * b_p0_pntr++;
+        c_21_reg += a_2p_reg * b_p1_pntr++;
+        c_22_reg += a_2p_reg * b_p2_pntr++;
+        c_23_reg += a_2p_reg * b_p3_pntr++;
+      }
+
+      C(0, 0) += c_00_reg;
+      C(0, 1) += c_00_reg;
+      C(0, 2) += c_00_reg;
+      C(0, 3) += c_00_reg;
+      C(1, 0) += c_10_reg;
+      C(1, 1) += c_11_reg;
+      C(1, 2) += c_12_reg;
+      C(1, 3) += c_13_reg;
+      C(2, 0) += c_20_reg;
+      C(2, 1) += c_21_reg;
+      C(2, 2) += c_22_reg;
+      C(2, 3) += c_23_reg;
+      C(3, 0) += c_30_reg;
+      C(3, 1) += c_31_reg;
+      C(3, 2) += c_32_reg;
+      C(3, 3) += c_33_reg;
+}
+
+// 4x4 merged, inlined dot products with register storage
+// for frequently used vars and pointers for elements of b
+void mmmul_8(int m, int n, int k, double *a, double *b, double *c, int lda, int ldb, int ldc) {
+  int i, j;
+  for (j = 0; j < n; j+=4) {
+    for (i = 0; i < m; i+=4) {
+      add_dot_4x4_regs(k, &A(i, 0), &B(0, j), &C(i, j), lda, ldb, ldc);
+    }
+  }
+}
+
 typedef struct {
   double time1;
   double time2;
 } cmp_times;
 
-char *method_1_name = "mmmul_6";
-char *method_2_name = "mmmul_7";
+char *method_1_name = "mmmul_1";
+char *method_2_name = "mmmul_8";
 
 void timed_mmmul(int n, cmp_times *times, double *a, double *b, double *c1, double *c2) {
   int size = n*n;
@@ -195,12 +270,12 @@ void timed_mmmul(int n, cmp_times *times, double *a, double *b, double *c1, doub
   double method_1_time, method_2_time;
 
   begin = clock();
-  mmmul_6(n, n, n, a, b, c1, n, n, n);
+  mmmul_1(n, n, n, a, b, c1, n, n, n);
   end = clock();
   times->time1 = (double) (end - begin) / CLOCKS_PER_SEC;
 
   begin = clock();
-  mmmul_7(n, n, n, a, b, c2, n, n, n);
+  mmmul_8(n, n, n, a, b, c2, n, n, n);
   end = clock();
   times->time2 = (double) (end - begin) / CLOCKS_PER_SEC;
 }
