@@ -1,70 +1,80 @@
 #include "Utils.h"
 
-// B = A + B for A, B of size 4
-inline void sum_4(double *a, double *b)  {
-  __m128d b_00_01, b_10_11;
+#define A(i,j) a[ (j)*lda + (i)]
+#define B(i,j) b[ (j)*ldb + (i)]
+#define C(i,j) c[ (j)*ldc + (i)]
 
-  b_00_01 = _mm_load_pd(&b[0]);
-  b_10_11 = _mm_load_pd(&b[2]);
-
-  b_00_01 += _mm_load_pd(&a[0]);
-  b_10_11 += _mm_load_pd(&a[2]);
-
-  _mm_store_pd(&b[0], b_00_01);
-  _mm_store_pd(&b[2], b_10_11);
+void mmmul_1(int m, int n, int k, double *a, double *b, double *c, int lda, int ldb, int ldc) {
+  int i, j, p;
+  for (i = 0; i < m; i++) {
+    for (j = 0; j < n; j++) {
+      for (p = 0; p < k; p++) {
+        C(i, j) += A(i, p) + B(p, j);
+      }
+    }
+  }
 }
 
-// C = AB + C for 2 double precision matrices in row major order
-inline void mmmul_2x2(double *a, double *b, double *c) {
-  __m128d c_00_01, c_10_11;
-  __m128d a_00, a_01, a_10, a_11;
-  __m128d b_00_01, b_10_11;
+typedef struct {
+  double time1;
+  double time2;
+} cmp_times;
 
-  c_00_01 = _mm_load_pd(&c[0]);
-  c_10_11 = _mm_load_pd(&c[2]);
+void timed_mmmul(int n, cmp_times *times, double *a, double *b, double *c1, double *c2) {
+  int size = n*n;
 
-  a_00 = _mm_loaddup_pd(&a[0]);
-  a_01 = _mm_loaddup_pd(&a[1]);
-  a_10 = _mm_loaddup_pd(&a[2]);
-  a_11 = _mm_loaddup_pd(&a[3]);
+  clock_t begin, end;
+  double method_1_time, method_2_time;
 
-  b_00_01 = _mm_load_pd(&b[0]);
-  b_10_11 = _mm_load_pd(&b[2]);
+  begin = clock();
+  mmmul_1(n, n, n, a, b, c1, n, n, n);
+  end = clock();
+  times->time1 = (double) (end - begin) / CLOCKS_PER_SEC;
 
-  c_00_01 += a_00 * b_00_01;
-  c_10_11 += a_10 * b_00_01;
-
-  c_00_01 += a_01 * b_10_11;
-  c_10_11 += a_11 * b_10_11;
-
-  _mm_store_pd(&c[0], c_00_01);
-  _mm_store_pd(&c[2],c_10_11);
+  begin = clock();
+  mmmul_1(n, n, n, a, b, c2, n, n, n);
+  end = clock();
+  times->time2 = (double) (end - begin) / CLOCKS_PER_SEC;
 }
 
 int main()  {
-  int dim = 2;
-  int n = dim*dim;
+  char *method_1_name = "mmmul_1";
+  char *method_2_name = "mmmul_1";
+  int num_dims = 130;
+  int increments = 4;
+  int dimensions[num_dims];
+  int i;
+  for (i = 1; i <= num_dims; i++)  {
+    dimensions[i - 1] = 4*i;
+  }
 
-  double *a = (double *) alloc_aligned_16(n*sizeof(double));
-  double *b = (double *) alloc_aligned_16(n*sizeof(double));
-  double *c = (double *) alloc_aligned_16(n*sizeof(double));
-  double *other_c = (double *) alloc_aligned_16(n*sizeof(double));
+  // Allocate matrices used for testing
+  int max_n = increments*num_dims;
+  int max_size = max_n*max_n;
+  double *a = (double *) malloc(max_size*sizeof(double));
+  double *b = (double *) malloc(max_size*sizeof(double));
+  double *c1 = (double *) malloc(max_size*sizeof(double));
+  double *c2 = (double *) malloc(max_size*sizeof(double));
 
-  rand_doubles(n, a);
-  rand_doubles(n, b);
-  rand_doubles(n, c);
+  rand_doubles(max_size, a);
+  rand_doubles(max_size, b);
+  rand_doubles(max_size, c1);
+  copy_buffer(max_size, c1, c2);
 
-  copy_buffer(n, c, other_c);
+  cmp_times times;
+  double m1_times[num_dims], m2_times[num_dims];
+  for (i = 0; i < num_dims; i++)  {
+    timed_mmmul(dimensions[i], &times, a, b, c1, c2);
+    printf("%s time = %f for n = %d\n", method_1_name, times.time1, dimensions[i]);
+    printf("%s time = %f for n = %d\n", method_2_name, times.time2, dimensions[i]);
+    printf("\n");
+    m1_times[i] = times.time1;
+    m2_times[i] = times.time2;
+  }
 
-  mmmul_2x2(a, b, c);
-  simple_mmmul(dim, a, b, other_c);
-
-  print_square_mat(dim, c);
-  printf("\n");
-  print_square_mat(dim, other_c);
-
-  double diff = diff_buffer(n, c, other_c);
-  printf("diff = %f\n", diff);
-
+  free(a);
+  free(b);
+  free(c1);
+  free(c2);
   return 0;
 }
