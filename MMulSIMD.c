@@ -1,8 +1,4 @@
-#include <math.h>
-#include <malloc.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <smmintrin.h>
+#include "Utils.h"
 
 // B = A + B for A, B of size 4
 inline void sum_4(double *a, double *b)  {
@@ -45,72 +41,29 @@ inline void mmmul_2x2(double *a, double *b, double *c) {
   _mm_store_pd(&c[2],c_10_11);
 }
 
-inline void mmmul_4x4(double *a, double *b, double *c) {
-  printf ("starting\n");
-
-  mmmul_2x2(&a[0], &b[0], &c[0]);
-  mmmul_2x2(&a[4], &b[8], &c[0]);
-
-  mmmul_2x2(&a[0], &b[4], &c[4]);
-  mmmul_2x2(&a[4], &b[12], &c[4]);
-
-  mmmul_2x2(&a[8], &b[0], &c[8]);
-  mmmul_2x2(&a[12], &b[8], &c[8]);
-
-  mmmul_2x2(&a[8], &b[4], &c[12]);
-  mmmul_2x2(&a[12], &b[12], &c[12]);
-}
-
-void rand_doubles(int size, double *rands) {
-  int i;
-  for (i = 0; i < size; i++) {
-    rands[i] = rand() % 10;
-  }
-}
-
-void simple_mmmul(int n, double *a, double *b, double *c)  {
-  int i, j, k;
-  for (i = 0; i < n; i++) {
-    for (j = 0; j < n; j++) {
-      for (k = 0; k < n; k++) {
-        c[i*n + j] += a[i*n + k] * b[k*n + j];
-      }
-    }
-  }
-}
-
-double diff_buffer(int size, double *buf1, double *buf2)  {
-  int i;
-  double diff = 0.0;
-  for (i = 0; i < size; i++)  {
-    diff += abs(buf1[i] - buf2[i]);
-  }
-  return diff;
-}
-
-void copy_buffer(int size, double *src, double *dest) {
-  int i;
-  for (i = 0; i < size; i++) {
-    dest[i] = src[i];
-  }
-}
-
 int main()  {
-  double *a = (double *) _aligned_malloc(16*sizeof(double), 16);
-  double *b = (double *) _aligned_malloc(16*sizeof(double), 16);
-  double *c = (double *) _aligned_malloc(16*sizeof(double), 16);
-  double *other_c = (double *) _aligned_malloc(16*sizeof(double), 16);
+  int dim = 2;
+  int n = dim*dim;
 
-  rand_doubles(16, a);
-  rand_doubles(16, b);
-  rand_doubles(16, c);
+  double *a = (double *) alloc_aligned_16(n*sizeof(double));
+  double *b = (double *) alloc_aligned_16(n*sizeof(double));
+  double *c = (double *) alloc_aligned_16(n*sizeof(double));
+  double *other_c = (double *) alloc_aligned_16(n*sizeof(double));
 
-  copy_buffer(16, c, other_c);
+  rand_doubles(n, a);
+  rand_doubles(n, b);
+  rand_doubles(n, c);
+
+  copy_buffer(n, c, other_c);
 
   mmmul_2x2(a, b, c);
-  simple_mmmul(2, a, b, other_c);
+  simple_mmmul(dim, a, b, other_c);
 
-  double diff = diff_buffer(16, c, other_c);
+  print_square_mat(dim, c);
+  printf("\n");
+  print_square_mat(dim, other_c);
+
+  double diff = diff_buffer(n, c, other_c);
   printf("diff = %f\n", diff);
 
   return 0;
