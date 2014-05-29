@@ -3,6 +3,7 @@
 
 #include <smmintrin.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 void *alloc_aligned_16(size_t size);
