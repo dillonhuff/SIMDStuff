@@ -459,48 +459,34 @@ void add_dot_4x4_vregs(int k, double *a, double *b, double *c, int lda, int ldb,
         b_p3_vreg.v = _mm_loaddup_pd((double *) b_p3_pntr++);
 
         // First and second rows
-        c_00_reg += a_0p_reg * b_p0_reg;
-        c_10_reg += a_1p_reg * b_p0_reg;
-
-        c_01_reg += a_0p_reg * b_p1_reg;
-        c_11_reg += a_1p_reg * b_p1_reg;
-
-        c_02_reg += a_0p_reg * b_p2_reg;
-        c_12_reg += a_1p_reg * b_p2_reg;
-
-        c_03_reg += a_0p_reg * b_p3_reg;
-        c_13_reg += a_1p_reg * b_p3_reg;
+        c_00_10_vreg.v += a_0p_1p_vreg.v * b_p0_vreg.v;
+        c_01_11_vreg.v += a_0p_1p_vreg.v * b_p1_vreg.v;
+        c_02_12_vreg.v += a_0p_1p_vreg.v * b_p2_vreg.v;
+        c_03_13_vreg.v += a_0p_1p_vreg.v * b_p3_vreg.v;
 
         // Third and fourth rows
-        c_20_reg += a_2p_reg * b_p0_reg;
-        c_30_reg += a_3p_reg * b_p0_reg;
-
-        c_21_reg += a_2p_reg * b_p1_reg;
-        c_31_reg += a_3p_reg * b_p1_reg;
-
-        c_22_reg += a_2p_reg * b_p2_reg;
-        c_32_reg += a_3p_reg * b_p2_reg;
-
-        c_23_reg += a_2p_reg * b_p3_reg;
-        c_33_reg += a_3p_reg * b_p3_reg;
+        c_20_30_vreg.v += a_2p_3p_vreg.v * b_p0_vreg.v;
+        c_21_31_vreg.v += a_2p_3p_vreg.v * b_p1_vreg.v;
+        c_22_32_vreg.v += a_2p_3p_vreg.v * b_p2_vreg.v;
+        c_23_33_vreg.v += a_2p_3p_vreg.v * b_p3_vreg.v;
       }
 
       C(0, 0) += c_00_10_vreg.d[0];
-      C(0, 1) += c_;
-      C(0, 2) += c_00_reg;
-      C(0, 3) += c_00_reg;
-      C(1, 0) += c_10_reg;
-      C(1, 1) += c_11_reg;
-      C(1, 2) += c_12_reg;
-      C(1, 3) += c_13_reg;
-      C(2, 0) += c_20_reg;
-      C(2, 1) += c_21_reg;
-      C(2, 2) += c_22_reg;
-      C(2, 3) += c_23_reg;
-      C(3, 0) += c_30_reg;
-      C(3, 1) += c_31_reg;
-      C(3, 2) += c_32_reg;
-      C(3, 3) += c_33_reg;
+      C(0, 1) += c_01_11_vreg.d[0];
+      C(0, 2) += c_02_12_vreg.d[0];
+      C(0, 3) += c_03_13_vreg.d[0];
+      C(1, 0) += c_00_10_vreg.d[1];
+      C(1, 1) += c_01_11_vreg.d[1];
+      C(1, 2) += c_02_12_vreg.d[1];
+      C(1, 3) += c_03_13_vreg.d[1];
+      C(2, 0) += c_20_30_vreg.d[0];
+      C(2, 1) += c_21_31_vreg.d[0];
+      C(2, 2) += c_22_32_vreg.d[0];
+      C(2, 3) += c_23_33_vreg.d[0];
+      C(3, 0) += c_20_30_vreg.d[1];
+      C(3, 1) += c_21_31_vreg.d[1];
+      C(3, 2) += c_22_32_vreg.d[1];
+      C(3, 3) += c_23_33_vreg.d[1];
 }
 
 // 4x4 merged using SIMD instructions
@@ -518,8 +504,8 @@ typedef struct {
   double time2;
 } cmp_times;
 
-char *method_1_name = "mmmul_8";
-char *method_2_name = "mmmul_9";
+char *method_1_name = "mmmul_9";
+char *method_2_name = "mmmul_10";
 
 void timed_mmmul(int n, cmp_times *times, double *a, double *b, double *c1, double *c2) {
   int size = n*n;
@@ -528,12 +514,12 @@ void timed_mmmul(int n, cmp_times *times, double *a, double *b, double *c1, doub
   double method_1_time, method_2_time;
 
   begin = clock();
-  mmmul_8(n, n, n, a, b, c1, n, n, n);
+  mmmul_9(n, n, n, a, b, c1, n, n, n);
   end = clock();
   times->time1 = (double) (end - begin) / CLOCKS_PER_SEC;
 
   begin = clock();
-  mmmul_9(n, n, n, a, b, c2, n, n, n);
+  mmmul_10(n, n, n, a, b, c2, n, n, n);
   end = clock();
   times->time2 = (double) (end - begin) / CLOCKS_PER_SEC;
 }

@@ -4,7 +4,7 @@ library(reshape2);
 fPath <- "C:/Users/Dillon/CWorkspace/SIMDStuff"
 setwd(fPath);
 
-filename <- "gemm_time_cmp_mmmul_8_mmmul_9.csv"
+filename <- "gemm_time_cmp_mmmul_9_mmmul_10.csv"
 
 timeData <- read.csv(filename, header=T, sep=",");
 
